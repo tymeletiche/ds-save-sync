@@ -1,0 +1,29 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build 3DSX",
+            "type": "shell",
+            "command": "make",
+            "args": ["-j$(sysctl -n hw.ncpu)"],
+            "group": { "kind": "build", "isDefault": true },
+            "problemMatcher": ["$gcc"],
+            "presentation": { "reveal": "always" }
+        },
+        {
+            "label": "Clean",
+            "type": "shell",
+            "command": "make",
+            "args": ["clean"],
+            "problemMatcher": []
+        },
+        {
+            "label": "Deploy to 3DS (3dslink)",
+            "type": "shell",
+            "command": "3dslink",
+            "args": ["${workspaceFolder}/ds-save-sync.3dsx"],
+            "problemMatcher": [],
+            "dependsOn": "Build 3DSX"
+        }
+    ]
+}
