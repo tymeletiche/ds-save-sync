@@ -3,7 +3,7 @@
 
 #include <cstdio>
 
-static const char* CONFIG_PATH = "sd:/3ds/ds-save-sync/config.ini";
+static const char* CONFIG_PATH = "sdmc:/3ds/ds-save-sync/config.ini";
 
 bool Config::load() {
     if (!Util::fileExists(CONFIG_PATH)) return false;

@@ -449,7 +449,7 @@ void App::drawSettings(u32 kDown) {
         consoleSelect(m_bottom);
         printf("\n  Edit config.ini on your PC to\n");
         printf("  change these settings.\n\n");
-        printf("  Config: sd:/3ds/ds-save-sync/\n");
+        printf("  Config: sdmc:/3ds/ds-save-sync/\n");
         printf("          config.ini\n\n");
         printf("  [B] Back\n");
 

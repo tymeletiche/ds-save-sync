@@ -7,6 +7,9 @@
 #include "app.h"
 #include "network.h"
 
+// Default 3DS stack is 32KB — far too small for 32KB SFTP buffers
+u32 __stacksize__ = 256 * 1024; // 256KB
+
 int main(int argc, char* argv[]) {
     gfxInitDefault();
 

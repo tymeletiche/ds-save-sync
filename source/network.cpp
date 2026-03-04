@@ -193,7 +193,7 @@ bool downloadFile(Connection& conn, const char* remotePath,
         return false;
     }
 
-    char buf[32768]; // 32KB buffer
+    static char buf[32768]; // 32KB buffer — static to avoid stack overflow
     int downloaded = 0;
     for (;;) {
         ssize_t n = libssh2_sftp_read(handle, buf, sizeof(buf));
@@ -242,7 +242,7 @@ bool uploadFile(Connection& conn, const char* localPath,
         return false;
     }
 
-    char buf[32768]; // 32KB buffer
+    static char buf[32768]; // 32KB buffer — static to avoid stack overflow
     int uploaded = 0;
     for (;;) {
         size_t n = fread(buf, 1, sizeof(buf), fp);
