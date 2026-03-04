@@ -15,7 +15,7 @@ mkdir -p "$DS_SYNC_DIR"/{roms,saves}
 # Install rclone if not present
 if ! command -v rclone &>/dev/null; then
     echo "Installing rclone..."
-    curl https://rclone.org/install.sh | sudo bash
+    sudo apt-get update && sudo apt-get install -y rclone
     echo ""
 fi
 

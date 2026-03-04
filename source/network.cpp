@@ -64,6 +64,7 @@ bool connect(Connection& conn, const Config& cfg) {
     }
 
     libssh2_session_set_blocking(conn.session, 1);
+    libssh2_session_set_timeout(conn.session, 10000);
 
     if (libssh2_session_handshake(conn.session, conn.sock) != 0) {
         char* errmsg = nullptr;

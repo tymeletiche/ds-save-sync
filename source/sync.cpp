@@ -8,7 +8,7 @@
 namespace Sync {
 
 SaveInfo getSaveInfo(Network::Connection& conn, const char* saveName,
-                     const char* localSavePath) {
+                     const char* localSavePath, const Config& cfg) {
     SaveInfo info;
     info.name = saveName;
     info.existsLocally = false;
@@ -26,7 +26,7 @@ SaveInfo getSaveInfo(Network::Connection& conn, const char* saveName,
     }
 
     // Get remote save info (this also pulls latest from cloud)
-    std::string cmd = "~/ds-sync/ds-sync.sh sync-prepare \"";
+    std::string cmd = cfg.scriptPath + " sync-prepare \"";
     cmd += saveName;
     cmd += "\"";
 
@@ -45,6 +45,8 @@ SaveInfo getSaveInfo(Network::Connection& conn, const char* saveName,
                 info.remoteSize = (size_t)atoll(
                     output.substr(pipe2 + 1).c_str());
             }
+        } else if (output.substr(0, 11) == "CLOUD_ERROR") {
+            // Cloud pull failed — remote status unknown, treat as not found
         }
     }
 
@@ -60,15 +62,16 @@ bool hasConflict(const SaveInfo& info) {
 }
 
 bool pushSave(Network::Connection& conn, const char* localPath,
-              const char* saveName, const Config& cfg) {
+              const char* saveName, const Config& cfg,
+              Network::ProgressCallback progress) {
     // Upload save via SFTP
     std::string remotePath = cfg.serverSavesPath + "/" + saveName;
-    if (!Network::uploadFile(conn, localPath, remotePath.c_str(), nullptr)) {
+    if (!Network::uploadFile(conn, localPath, remotePath.c_str(), progress)) {
         return false;
     }
 
     // Tell server to push to cloud
-    std::string cmd = "~/ds-sync/ds-sync.sh sync-finish \"";
+    std::string cmd = cfg.scriptPath + " sync-finish \"";
     cmd += saveName;
     cmd += "\"";
 
@@ -77,10 +80,11 @@ bool pushSave(Network::Connection& conn, const char* localPath,
 }
 
 bool pullSave(Network::Connection& conn, const char* saveName,
-              const char* localPath, const Config& cfg) {
+              const char* localPath, const Config& cfg,
+              Network::ProgressCallback progress) {
     // Download save via SFTP
     std::string remotePath = cfg.serverSavesPath + "/" + saveName;
-    return Network::downloadFile(conn, remotePath.c_str(), localPath, nullptr);
+    return Network::downloadFile(conn, remotePath.c_str(), localPath, progress);
 }
 
 } // namespace Sync

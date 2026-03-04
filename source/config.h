@@ -10,6 +10,7 @@ struct Config {
     std::string sshPubKeyPath = "sd:/3ds/ds-save-sync/id_rsa.pub";
     std::string scriptPath = "~/ds-sync/ds-sync.sh";
     std::string serverSavesPath = "~/ds-sync/saves";
+    std::string serverRomsPath = "~/ds-sync/roms";
     std::string localSavesPath = "sd:/roms/nds/saves";
     std::string localRomsPath = "sd:/roms/nds";
     std::string twilightIniPath = "sd:/_nds/TWiLightMenu/settings.ini";

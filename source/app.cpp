@@ -5,6 +5,14 @@
 #include <cstdio>
 #include <cstring>
 
+static PrintConsole* s_progressConsole = nullptr;
+
+static void progressCallback(int current, int total) {
+    if (s_progressConsole) {
+        UI::drawProgressBar(s_progressConsole, current, total, nullptr);
+    }
+}
+
 App::App(PrintConsole* top, PrintConsole* bottom)
     : m_top(top)
     , m_bottom(bottom)
@@ -175,7 +183,7 @@ void App::drawSyncSave(u32 kDown) {
         // Get save info from both sides
         std::string saveName = m_lastPlayed.gameName + ".sav";
         m_saveInfo = Sync::getSaveInfo(m_conn, saveName.c_str(),
-                                        m_lastPlayed.savePath.c_str());
+                                        m_lastPlayed.savePath.c_str(), m_config);
 
         // Display comparison
         consoleSelect(m_top);
@@ -348,8 +356,15 @@ void App::drawRomLibrary(u32 kDown) {
         if (m_romList.empty()) {
             printf("  No ROMs found on server.\n");
         } else {
-            for (int i = 0; i < (int)m_romList.size() && i < 20; i++) {
-                // Check if ROM exists locally
+            int total = (int)m_romList.size();
+            int visible = 22;
+            int startIdx = 0;
+            if (total > visible) {
+                startIdx = m_romSelection - visible / 2;
+                if (startIdx < 0) startIdx = 0;
+                if (startIdx > total - visible) startIdx = total - visible;
+            }
+            for (int i = startIdx; i < startIdx + visible && i < total; i++) {
                 std::string localPath = m_config.localRomsPath + "/" + m_romList[i];
                 bool localExists = Util::fileExists(localPath);
 
@@ -364,6 +379,9 @@ void App::drawRomLibrary(u32 kDown) {
                            localExists ? "+" : " ",
                            m_romList[i].c_str());
                 }
+            }
+            if (total > visible) {
+                printf("  (%d/%d)\n", m_romSelection + 1, total);
             }
         }
         printf("\n  [A] Download  [B] Back\n");
@@ -382,25 +400,22 @@ void App::drawRomLibrary(u32 kDown) {
     if (kDown & KEY_A && !m_romList.empty()) {
         // Download selected ROM
         std::string romName = m_romList[m_romSelection];
-        std::string remotePath = m_config.serverSavesPath;
-        // Replace saves with roms in path
-        size_t savesPos = remotePath.find("saves");
-        if (savesPos != std::string::npos) {
-            remotePath.replace(savesPos, 5, "roms");
-        }
-        remotePath += "/" + romName;
+        std::string remotePath = m_config.serverRomsPath + "/" + romName;
         std::string localPath = m_config.localRomsPath + "/" + romName;
 
         UI::clear(m_top);
         consoleSelect(m_top);
         printf("  Downloading %s...\n", romName.c_str());
 
+        s_progressConsole = m_top;
         if (Network::downloadFile(m_conn, remotePath.c_str(),
-                                   localPath.c_str(), nullptr)) {
+                                   localPath.c_str(), progressCallback)) {
+            s_progressConsole = nullptr;
             UI::setColor(32);
             printf("  Download complete!\n");
             UI::resetColor();
         } else {
+            s_progressConsole = nullptr;
             UI::setColor(31);
             printf("  Download failed!\n");
             printf("  %s\n", Network::getLastError());
@@ -460,15 +475,17 @@ void App::doSyncStep() {
 
     consoleSelect(m_top);
 
+    s_progressConsole = m_top;
     if (m_syncPush) {
         printf("  Uploading save...\n");
         ok = Sync::pushSave(m_conn, m_lastPlayed.savePath.c_str(),
-                            saveName.c_str(), m_config);
+                            saveName.c_str(), m_config, progressCallback);
     } else {
         printf("  Downloading save...\n");
         ok = Sync::pullSave(m_conn, saveName.c_str(),
-                            m_lastPlayed.savePath.c_str(), m_config);
+                            m_lastPlayed.savePath.c_str(), m_config, progressCallback);
     }
+    s_progressConsole = nullptr;
 
     if (ok) {
         UI::setColor(32);

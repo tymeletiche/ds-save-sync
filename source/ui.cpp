@@ -30,4 +30,16 @@ void drawHeader(PrintConsole* con, const char* title) {
     printf("\n");
 }
 
+void drawProgressBar(PrintConsole* con, int current, int total, const char* label) {
+    consoleSelect(con);
+    int pct = (total > 0) ? (current * 100 / total) : 0;
+    if (pct > 100) pct = 100;
+    printf("\x1b[10;1H");  // fixed position row 10, overwrite each call
+    if (label) printf("  %s\n", label);
+    int filled = pct * 30 / 100;
+    printf("  [");
+    for (int i = 0; i < 30; i++) printf(i < filled ? "#" : "-");
+    printf("] %3d%%\n", pct);
+}
+
 } // namespace UI

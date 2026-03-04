@@ -29,6 +29,9 @@ bool Config::load() {
     std::string savesPath = Util::readIniValue(CONFIG_PATH, "server", "saves_path");
     if (!savesPath.empty()) serverSavesPath = savesPath;
 
+    std::string romsPath = Util::readIniValue(CONFIG_PATH, "server", "roms_path");
+    if (!romsPath.empty()) serverRomsPath = romsPath;
+
     std::string localSaves = Util::readIniValue(CONFIG_PATH, "paths", "local_saves");
     if (!localSaves.empty()) localSavesPath = localSaves;
 
@@ -54,6 +57,7 @@ bool Config::save() {
     fprintf(fp, "user = %s\n", sshUser.c_str());
     fprintf(fp, "script_path = %s\n", scriptPath.c_str());
     fprintf(fp, "saves_path = %s\n", serverSavesPath.c_str());
+    fprintf(fp, "roms_path = %s\n", serverRomsPath.c_str());
     fprintf(fp, "\n[ssh]\n");
     fprintf(fp, "private_key = %s\n", sshPrivKeyPath.c_str());
     fprintf(fp, "public_key = %s\n", sshPubKeyPath.c_str());

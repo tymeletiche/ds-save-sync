@@ -14,6 +14,15 @@ lock() {
     flock -n 200 || { echo "ERROR: Another sync is running"; exit 1; }
 }
 
+# Validate save_name is a safe basename (no slashes, no ..)
+validate_save_name() {
+    local name="$1"
+    if [[ -z "$name" ]] || [[ "$name" == */* ]] || [[ "$name" == *..* ]]; then
+        echo "ERROR: Invalid save name" >&2
+        exit 1
+    fi
+}
+
 # --- Subcommands ---
 
 # Pull saves from Google Drive to server
@@ -35,8 +44,8 @@ cmd_list_saves() {
     for f in "$SAVES_DIR"/*.sav; do
         [ -f "$f" ] || continue
         name=$(basename "$f")
-        mtime=$(stat -c '%Y' "$f" 2>/dev/null || stat -f '%m' "$f")
-        size=$(stat -c '%s' "$f" 2>/dev/null || stat -f '%z' "$f")
+        mtime=$(stat -c '%Y' "$f")
+        size=$(stat -c '%s' "$f")
         echo "${name}|${mtime}|${size}"
     done
 }
@@ -46,7 +55,7 @@ cmd_list_roms() {
     for f in "$ROMS_DIR"/*.nds; do
         [ -f "$f" ] || continue
         name=$(basename "$f")
-        size=$(stat -c '%s' "$f" 2>/dev/null || stat -f '%z' "$f")
+        size=$(stat -c '%s' "$f")
         echo "${name}|${size}"
     done
 }
@@ -54,10 +63,11 @@ cmd_list_roms() {
 # Get timestamp for a specific save
 cmd_save_info() {
     local save_name="$1"
+    validate_save_name "$save_name"
     local save_path="$SAVES_DIR/$save_name"
     if [ -f "$save_path" ]; then
-        mtime=$(stat -c '%Y' "$save_path" 2>/dev/null || stat -f '%m' "$save_path")
-        size=$(stat -c '%s' "$save_path" 2>/dev/null || stat -f '%z' "$save_path")
+        mtime=$(stat -c '%Y' "$save_path")
+        size=$(stat -c '%s' "$save_path")
         echo "EXISTS|${mtime}|${size}"
     else
         echo "MISSING"
@@ -67,10 +77,15 @@ cmd_save_info() {
 # Sync: pull from cloud, then respond with save info
 cmd_sync_prepare() {
     local save_name="$1"
+    validate_save_name "$save_name"
     lock
     # Pull latest from cloud first
-    rclone copy "${RCLONE_REMOTE}:${DRIVE_FOLDER}/saves/${save_name}" \
-        "$SAVES_DIR/" --update 2>/dev/null
+    local rclone_output
+    if ! rclone_output=$(rclone copy "${RCLONE_REMOTE}:${DRIVE_FOLDER}/saves/${save_name}" \
+        "$SAVES_DIR/" --update 2>&1); then
+        echo "CLOUD_ERROR|${rclone_output}"
+        exit 0
+    fi
     # Return save info
     cmd_save_info "$save_name"
 }
@@ -78,6 +93,7 @@ cmd_sync_prepare() {
 # After 3DS uploads a save, push it to cloud
 cmd_sync_finish() {
     local save_name="$1"
+    validate_save_name "$save_name"
     lock
     rclone copy "$SAVES_DIR/${save_name}" \
         "${RCLONE_REMOTE}:${DRIVE_FOLDER}/saves/" --update 2>&1
