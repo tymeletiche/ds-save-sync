@@ -126,6 +126,22 @@ void disconnect(Connection& conn) {
     }
 }
 
+bool isAlive(Connection& conn) {
+    if (conn.sock < 0 || !conn.session) return false;
+
+    LIBSSH2_CHANNEL* channel = libssh2_channel_open_session(conn.session);
+    if (!channel) return false;
+
+    libssh2_channel_close(channel);
+    libssh2_channel_free(channel);
+    return true;
+}
+
+bool reconnect(Connection& conn, const Config& cfg) {
+    disconnect(conn);
+    return connect(conn, cfg);
+}
+
 bool execCommand(Connection& conn, const char* cmd, std::string& output) {
     output.clear();
 

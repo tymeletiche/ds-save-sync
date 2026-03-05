@@ -19,6 +19,8 @@ typedef void (*ProgressCallback)(int current, int total);
 
 bool connect(Connection& conn, const Config& cfg);
 void disconnect(Connection& conn);
+bool isAlive(Connection& conn);
+bool reconnect(Connection& conn, const Config& cfg);
 
 bool execCommand(Connection& conn, const char* cmd, std::string& output);
 

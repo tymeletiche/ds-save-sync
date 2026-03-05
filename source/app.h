@@ -34,6 +34,7 @@ private:
 
     void startSync(bool push);
     void doSyncStep();
+    bool ensureConnected();
 
     PrintConsole* m_top;
     PrintConsole* m_bottom;

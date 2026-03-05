@@ -163,21 +163,17 @@ void App::drawSyncSave(u32 kDown) {
 
         m_needsRedraw = false;
 
-        // Connect and get save info
-        if (!m_connected) {
-            if (Network::connect(m_conn, m_config)) {
-                m_connected = true;
-            } else {
-                UI::setColor(31);
-                printf("\n  Connection failed!\n");
-                printf("  %s\n", Network::getLastError());
-                UI::resetColor();
+        // Connect (or reconnect if stale)
+        if (!ensureConnected()) {
+            UI::setColor(31);
+            printf("\n  Connection failed!\n");
+            printf("  %s\n", Network::getLastError());
+            UI::resetColor();
 
-                UI::clear(m_bottom);
-                consoleSelect(m_bottom);
-                printf("  [B] Back\n");
-                return;
-            }
+            UI::clear(m_bottom);
+            consoleSelect(m_bottom);
+            printf("  [B] Back\n");
+            return;
         }
 
         // Get save info from both sides
@@ -308,27 +304,23 @@ void App::drawRomLibrary(u32 kDown) {
         consoleSelect(m_top);
         UI::drawHeader(m_top, "ROM Library");
 
-        if (!m_connected) {
-            printf("\n  Connecting to %s...\n", m_config.serverHost.c_str());
-            if (Network::connect(m_conn, m_config)) {
-                m_connected = true;
-            } else {
-                UI::setColor(31);
-                printf("\n  Connection failed!\n");
-                printf("  %s\n", Network::getLastError());
-                UI::resetColor();
+        printf("\n  Connecting to %s...\n", m_config.serverHost.c_str());
+        if (!ensureConnected()) {
+            UI::setColor(31);
+            printf("\n  Connection failed!\n");
+            printf("  %s\n", Network::getLastError());
+            UI::resetColor();
 
-                UI::clear(m_bottom);
-                consoleSelect(m_bottom);
-                printf("  [B] Back\n");
-                m_needsRedraw = false;
+            UI::clear(m_bottom);
+            consoleSelect(m_bottom);
+            printf("  [B] Back\n");
+            m_needsRedraw = false;
 
-                if (kDown & KEY_B) {
-                    m_screen = Screen::MainMenu;
-                    m_needsRedraw = true;
-                }
-                return;
+            if (kDown & KEY_B) {
+                m_screen = Screen::MainMenu;
+                m_needsRedraw = true;
             }
+            return;
         }
 
         // Fetch ROM list from server
@@ -460,6 +452,23 @@ void App::drawSettings(u32 kDown) {
         m_screen = Screen::MainMenu;
         m_needsRedraw = true;
     }
+}
+
+bool App::ensureConnected() {
+    if (m_connected && Network::isAlive(m_conn)) {
+        return true;
+    }
+
+    if (m_connected) {
+        Network::disconnect(m_conn);
+        m_connected = false;
+    }
+
+    if (Network::connect(m_conn, m_config)) {
+        m_connected = true;
+        return true;
+    }
+    return false;
 }
 
 void App::startSync(bool push) {
