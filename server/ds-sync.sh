@@ -50,8 +50,10 @@ cmd_list_saves() {
     done
 }
 
-# List ROMs on server
+# List ROMs on server (pull from cloud first)
 cmd_list_roms() {
+    lock
+    rclone copy "${RCLONE_REMOTE}:${DRIVE_FOLDER}/roms/" "$ROMS_DIR/" --update 2>/dev/null || true
     for f in "$ROMS_DIR"/*.nds; do
         [ -f "$f" ] || continue
         name=$(basename "$f")

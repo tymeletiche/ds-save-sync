@@ -9,7 +9,9 @@ set -euo pipefail
 DRY_RUN=false
 [[ "${1:-}" == "--dry-run" ]] && DRY_RUN=true
 
-DRIVE_SAVES="$HOME/Library/CloudStorage/GoogleDrive-ty.meletiche@gmail.com/My Drive/DSSaves/saves"
+DRIVE_BASE="$HOME/Library/CloudStorage/GoogleDrive-ty.meletiche@gmail.com/My Drive/DSSaves"
+DRIVE_SAVES="$DRIVE_BASE/saves"
+DRIVE_ROMS="$DRIVE_BASE/roms"
 MELONDS_ROMS="$HOME/Documents/Roms"
 
 if [ ! -d "$DRIVE_SAVES" ]; then
@@ -18,6 +20,25 @@ if [ ! -d "$DRIVE_SAVES" ]; then
     echo "Make sure Google Drive for Desktop is running."
     exit 1
 fi
+
+# --- Sync ROMs to Google Drive so the 3DS can download them ---
+echo "Syncing ROMs to Google Drive..."
+mkdir -p "$DRIVE_ROMS"
+rom_synced=0
+for rom in "$MELONDS_ROMS"/*.nds; do
+    [ -f "$rom" ] || continue
+    rom_name=$(basename "$rom")
+    drive_rom="$DRIVE_ROMS/$rom_name"
+    if [ ! -f "$drive_rom" ]; then
+        echo "  Copying: $rom_name"
+        if [ "$DRY_RUN" = false ]; then
+            cp "$rom" "$drive_rom"
+        fi
+        ((rom_synced++)) || true
+    fi
+done
+echo "  $rom_synced new ROM(s) synced"
+echo ""
 
 # Read 4-byte game code from NDS ROM header at offset 0x0C
 read_game_code() {
@@ -75,13 +96,42 @@ find_match() {
     done
 }
 
-# Scan Google Drive saves and match
+# Scan Google Drive saves and link into both melonDS Roms dir and Drive roms dir
 echo "Matching saves to ROMs..."
 echo ""
 
 linked=0
 skipped=0
 unmatched=0
+
+link_save_to_dir() {
+    local save="$1"
+    local save_name="$2"
+    local target_dir="$3"
+    local label="$4"
+    local link_path="$target_dir/$match_rom.sav"
+
+    # Already correctly linked
+    if [ -L "$link_path" ]; then
+        existing_target=$(readlink "$link_path")
+        if [ "$existing_target" = "$save" ]; then
+            return 0
+        fi
+    fi
+
+    # Back up existing real file (not a symlink)
+    if [ -f "$link_path" ] && [ ! -L "$link_path" ]; then
+        echo "    Backing up $label: $match_rom.sav -> $match_rom.sav.bak"
+        if [ "$DRY_RUN" = false ]; then
+            mv "$link_path" "$link_path.bak"
+        fi
+    fi
+
+    if [ "$DRY_RUN" = false ]; then
+        ln -sf "$save" "$link_path"
+    fi
+    return 1
+}
 
 for save in "$DRIVE_SAVES"/*.sav; do
     [ -f "$save" ] || continue
@@ -95,31 +145,31 @@ for save in "$DRIVE_SAVES"/*.sav; do
         continue
     fi
 
-    link_path="$MELONDS_ROMS/$match_rom.sav"
+    did_link=false
 
-    # Already correctly linked
-    if [ -L "$link_path" ]; then
-        existing_target=$(readlink "$link_path")
-        if [ "$existing_target" = "$save" ]; then
-            echo "  OK [$match_method]: $match_rom.sav"
-            ((skipped++)) || true
-            continue
+    # Link into melonDS Roms directory
+    if link_save_to_dir "$save" "$save_name" "$MELONDS_ROMS" "local"; then
+        : # already linked
+    else
+        did_link=true
+    fi
+
+    # Link into Google Drive roms directory (where melonDS may load ROMs from)
+    if [ -d "$DRIVE_ROMS" ]; then
+        if link_save_to_dir "$save" "$save_name" "$DRIVE_ROMS" "drive"; then
+            : # already linked
+        else
+            did_link=true
         fi
     fi
 
-    # Back up existing real file (not a symlink)
-    if [ -f "$link_path" ] && [ ! -L "$link_path" ]; then
-        echo "  Backing up: $match_rom.sav -> $match_rom.sav.bak"
-        if [ "$DRY_RUN" = false ]; then
-            mv "$link_path" "$link_path.bak"
-        fi
+    if [ "$did_link" = true ]; then
+        echo "  LINK [$match_method]: $match_rom.sav -> $save_name.sav"
+        ((linked++)) || true
+    else
+        echo "  OK [$match_method]: $match_rom.sav"
+        ((skipped++)) || true
     fi
-
-    echo "  LINK [$match_method]: $match_rom.sav -> $save_name.sav"
-    if [ "$DRY_RUN" = false ]; then
-        ln -sf "$save" "$link_path"
-    fi
-    ((linked++)) || true
 done
 
 echo ""

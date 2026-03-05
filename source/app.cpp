@@ -220,6 +220,7 @@ void App::drawSyncSave(u32 kDown) {
             UI::setColor(32);
             printf("\n  Saves are in sync!\n");
             UI::resetColor();
+            printf("  [A] Push to cloud  [X] Pull to 3DS\n");
         } else {
             printf("\n  No save found on either side.\n");
         }
@@ -237,6 +238,13 @@ void App::drawSyncSave(u32 kDown) {
         } else if (m_saveInfo.existsLocally && !m_saveInfo.existsRemotely) {
             startSync(true);
         } else if (!m_saveInfo.existsLocally && m_saveInfo.existsRemotely) {
+            startSync(false);
+        } else if (m_saveInfo.existsLocally && m_saveInfo.existsRemotely) {
+            startSync(true);
+        }
+    }
+    if (kDown & KEY_X) {
+        if (m_saveInfo.existsLocally && m_saveInfo.existsRemotely) {
             startSync(false);
         }
     }
