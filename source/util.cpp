@@ -130,4 +130,54 @@ std::string formatTimestamp(time_t t) {
     return std::string(buf);
 }
 
+time_t readSyncTimestamp(const std::string& metaPath, const std::string& saveName) {
+    FILE* fp = fopen(metaPath.c_str(), "r");
+    if (!fp) return 0;
+
+    char line[512];
+    while (fgets(line, sizeof(line), fp)) {
+        std::string l = trim(std::string(line));
+        size_t eq = l.find('=');
+        if (eq == std::string::npos) continue;
+        std::string name = l.substr(0, eq);
+        if (name == saveName) {
+            time_t t = (time_t)atoll(l.substr(eq + 1).c_str());
+            fclose(fp);
+            return t;
+        }
+    }
+    fclose(fp);
+    return 0;
+}
+
+void writeSyncTimestamp(const std::string& metaPath, const std::string& saveName, time_t t) {
+    // Read existing entries (excluding the one we're updating)
+    std::string contents;
+    FILE* fp = fopen(metaPath.c_str(), "r");
+    if (fp) {
+        char line[512];
+        while (fgets(line, sizeof(line), fp)) {
+            std::string l = trim(std::string(line));
+            size_t eq = l.find('=');
+            if (eq != std::string::npos && l.substr(0, eq) == saveName)
+                continue;
+            if (!l.empty())
+                contents += l + "\n";
+        }
+        fclose(fp);
+    }
+
+    // Append updated entry
+    char buf[64];
+    snprintf(buf, sizeof(buf), "%lld", (long long)t);
+    contents += saveName + "=" + buf + "\n";
+
+    // Write back
+    fp = fopen(metaPath.c_str(), "w");
+    if (fp) {
+        fwrite(contents.c_str(), 1, contents.size(), fp);
+        fclose(fp);
+    }
+}
+
 } // namespace Util

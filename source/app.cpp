@@ -483,7 +483,8 @@ void App::doSyncStep() {
     } else {
         printf("  Downloading save...\n");
         ok = Sync::pullSave(m_conn, saveName.c_str(),
-                            m_lastPlayed.savePath.c_str(), m_config, progressCallback);
+                            m_lastPlayed.savePath.c_str(), m_config, progressCallback,
+                            m_saveInfo.remoteTimestamp);
     }
     s_progressConsole = nullptr;
 

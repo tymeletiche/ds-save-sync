@@ -21,4 +21,9 @@ bool fileExists(const std::string& path);
 std::string formatSize(size_t bytes);
 std::string formatTimestamp(time_t t);
 
+// Sync metadata: stores last-synced timestamps per save
+// Workaround for 3DS sdmc stat() not returning valid mtime
+time_t readSyncTimestamp(const std::string& metaPath, const std::string& saveName);
+void writeSyncTimestamp(const std::string& metaPath, const std::string& saveName, time_t t);
+
 } // namespace Util

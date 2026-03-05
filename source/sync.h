@@ -33,8 +33,10 @@ bool pushSave(Network::Connection& conn, const char* localPath,
               Network::ProgressCallback progress = nullptr);
 
 // Pull save from server to local SD
+// remoteTimestamp: if non-zero, set local file mtime to match server after download
 bool pullSave(Network::Connection& conn, const char* saveName,
               const char* localPath, const Config& cfg,
-              Network::ProgressCallback progress = nullptr);
+              Network::ProgressCallback progress = nullptr,
+              time_t remoteTimestamp = 0);
 
 } // namespace Sync

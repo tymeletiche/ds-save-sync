@@ -21,8 +21,13 @@ SaveInfo getSaveInfo(Network::Connection& conn, const char* saveName,
     // Check local save
     if (Util::fileExists(localSavePath)) {
         info.existsLocally = true;
-        info.localTimestamp = Util::getFileModTime(localSavePath);
         info.localSize = Util::getFileSize(localSavePath);
+        // 3DS sdmc stat() doesn't return valid mtime, so use our metadata file
+        std::string metaPath = cfg.localSavesPath + "/.sync-meta";
+        info.localTimestamp = Util::readSyncTimestamp(metaPath, saveName);
+        // Fall back to stat() mtime if metadata doesn't have it
+        if (info.localTimestamp == 0)
+            info.localTimestamp = Util::getFileModTime(localSavePath);
     }
 
     // Get remote save info (this also pulls latest from cloud)
@@ -76,15 +81,46 @@ bool pushSave(Network::Connection& conn, const char* localPath,
     cmd += "\"";
 
     std::string output;
-    return Network::execCommand(conn, cmd.c_str(), output);
+    if (!Network::execCommand(conn, cmd.c_str(), output))
+        return false;
+
+    // Record sync timestamp: get the server's file timestamp after push
+    std::string infoCmd = cfg.scriptPath + " save-info \"";
+    infoCmd += saveName;
+    infoCmd += "\"";
+    std::string infoOutput;
+    if (Network::execCommand(conn, infoCmd.c_str(), infoOutput)) {
+        infoOutput = Util::trim(infoOutput);
+        size_t pipe1 = infoOutput.find('|');
+        size_t pipe2 = infoOutput.find('|', pipe1 + 1);
+        if (pipe1 != std::string::npos && pipe2 != std::string::npos) {
+            time_t serverTs = (time_t)atoll(
+                infoOutput.substr(pipe1 + 1, pipe2 - pipe1 - 1).c_str());
+            std::string metaPath = cfg.localSavesPath + "/.sync-meta";
+            Util::writeSyncTimestamp(metaPath, saveName, serverTs);
+        }
+    }
+
+    return true;
 }
 
 bool pullSave(Network::Connection& conn, const char* saveName,
               const char* localPath, const Config& cfg,
-              Network::ProgressCallback progress) {
+              Network::ProgressCallback progress, time_t remoteTimestamp) {
     // Download save via SFTP
     std::string remotePath = cfg.serverSavesPath + "/" + saveName;
-    return Network::downloadFile(conn, remotePath.c_str(), localPath, progress);
+    if (!Network::downloadFile(conn, remotePath.c_str(), localPath, progress)) {
+        return false;
+    }
+
+    // Record sync timestamp in metadata file
+    // (3DS sdmc doesn't support utimes, so we track timestamps ourselves)
+    if (remoteTimestamp > 0) {
+        std::string metaPath = cfg.localSavesPath + "/.sync-meta";
+        Util::writeSyncTimestamp(metaPath, saveName, remoteTimestamp);
+    }
+
+    return true;
 }
 
 } // namespace Sync
